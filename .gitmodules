@@ -1,0 +1,6 @@
+[submodule "projet-fil-rouge-cc"]
+	path = projet-fil-rouge-cc
+	url = https://github.com/CedricAOUN/projet-fil-rouge-cc.git
+[submodule "pfr-backend-cc"]
+	path = pfr-backend-cc
+	url = https://github.com/CedricAOUN/pfr-backend-cc.git
