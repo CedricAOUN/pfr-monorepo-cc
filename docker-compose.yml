@@ -1,0 +1,76 @@
+name: pfr
+services:
+  db:
+    image: mysql:5.7
+    container_name: db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: pfr_db
+      MYSQL_USER: pfr_user
+      MYSQL_PASSWORD: pfr_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - pfr_network
+  
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "8085:80"
+    depends_on:
+      - db
+    networks:
+      - pfr_network
+
+  web:
+    build: ./projet-fil-rouge-cc
+    container_name: web
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./projet-fil-rouge-cc:/app
+      - /app/node_modules
+    environment:
+      VITE_API_URL: http://localhost:8080/api/v1
+    networks:
+      - pfr_network
+    depends_on:
+      - db
+    
+  backend:
+    build: ./pfr-backend-cc
+    container_name: backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./pfr-backend-cc:/app
+      - /app/vendor  
+    environment:
+      APP_ENV: local
+      APP_KEY: base64:changeme==
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: pfr_db
+      DB_USERNAME: pfr_user
+      DB_PASSWORD: pfr_password
+      SESSION_DRIVER: cookie
+      CACHE_STORE: file
+    networks:
+      - pfr_network
+    depends_on:
+      - db
+
+
+networks:
+  pfr_network:
+
+volumes:
+  db_data:
