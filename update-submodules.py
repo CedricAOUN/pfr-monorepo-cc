@@ -4,19 +4,12 @@ import os
 import subprocess
 import sys
 
-SUBMODULES = [
-    "pfr-backend-cc",
-    "projet-fil-rouge-cc",
-]
 
-BRANCH = "main"
+def run(command):
+    print(f"> {' '.join(command)}")
 
-
-def run(cmd, cwd):
-    print(f"\n> {' '.join(cmd)}")
     result = subprocess.run(
-        cmd,
-        cwd=cwd,
+        command,
         text=True,
         capture_output=True
     )
@@ -25,54 +18,67 @@ def run(cmd, cwd):
         print(result.stdout.strip())
 
     if result.returncode != 0:
-        print(result.stderr.strip())
+        if result.stderr:
+            print(result.stderr.strip())
+
         sys.exit(result.returncode)
 
 
 def main():
-    monorepo_root = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(repo_root)
 
-    print(f"Monorepo: {monorepo_root}")
+    print(f"Working directory: {repo_root}")
 
-    # Update each submodule
-    for submodule in SUBMODULES:
-        path = os.path.join(monorepo_root, submodule)
+    # Ensure local submodule configuration matches .gitmodules
+    run([
+        "git",
+        "submodule",
+        "sync",
+        "--recursive"
+    ])
 
-        if not os.path.isdir(path):
-            print(f"Missing submodule: {path}")
-            sys.exit(1)
+    # Initialize missing submodules and update to latest tracked branches
+    run([
+        "git",
+        "submodule",
+        "update",
+        "--init",
+        "--remote",
+        "--recursive"
+    ])
 
-        print(f"\nUpdating {submodule}")
+    # Stage updated submodule references
+    run([
+        "git",
+        "add",
+        "."
+    ])
 
-        run(["git", "checkout", BRANCH], path)
-        run(["git", "pull", "origin", BRANCH], path)
-
-    # Update parent repo pointers
-    print("\nUpdating monorepo references")
-
-    run(["git", "add", *SUBMODULES], monorepo_root)
-
-    status = subprocess.run(
-        ["git", "diff", "--cached", "--name-only"],
-        cwd=monorepo_root,
-        text=True,
-        capture_output=True
+    # Check whether there is anything to commit
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--quiet"]
     )
 
-    if status.stdout.strip():
-        run(
-            ["git", "commit", "-m", "Update submodules to latest commits"],
-            monorepo_root
-        )
+    if result.returncode == 0:
+        print("No submodule updates detected.")
+        return
 
-        run(
-            ["git", "push", "origin", 'master'],
-            monorepo_root
-        )
+    # Commit updated submodule pointers
+    run([
+        "git",
+        "commit",
+        "-m",
+        "Bump submodules"
+    ])
 
-        print("\nDone: monorepo updated and pushed.")
-    else:
-        print("\nNo submodule changes detected.")
+    # Push monorepo update
+    run([
+        "git",
+        "push"
+    ])
+
+    print("Submodules updated and monorepo pushed successfully.")
 
 
 if __name__ == "__main__":
